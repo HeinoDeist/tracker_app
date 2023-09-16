@@ -4,6 +4,7 @@ by tracking and managing income and expense categories and values."""
 
 import sqlite3
 import os
+from tabulate import tabulate
 
 
 db_file = "data/tracker_db"
@@ -30,8 +31,51 @@ db, cursor, menu_status = create_connection(db_file)
 def create_expense_table(db, cursor):
     """ Creates a table called 'expense_table" in the database."""
     
-def ceate_income_table(db, cursor):
+    cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
+    initial_data = [[1,"Mortgages", 13000],
+                    [2,"Electricity", 5000],
+                    [3, "Food", 5200.01]]
+    
+    cursor.executemany('''INSERT OR REPLACE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
+    db.commit()
+    
+def add_expense_category(db,cursor):
+     
+    """ Adds an expense category to the expenses table"""
+    # REMEMBER TO ADD FAIL SAFE TRY-EXCEPT BLOCKS
+    
+    new_expense = input("Please enter the expense category you would like to add:")
+    cursor.execute('''SELECT max(id) FROM expenses''')
+    last_id = cursor.fetchone()[0]
+
+    if last_id == None:
+        last_id = 1
+    else:
+        last_id +=1
+
+    new_category = [last_id, new_expense, 0]
+    cursor.execute('''INSERT OR REPLACE INTO expenses(id, category, amount) VALUES(?,?,?)''', new_category)
+    db.commit()
+
+def view_tables(table_name, cursor):
+    query = f"SELECT * FROM {table_name}"
+    cursor.execute(query)
+    table = cursor.fetchall()
+    print(f"Showing entries in {table_name}:")
+    
+    print(tabulate(table, headers=["ID","CATEGORY","AMOUNT"]))
+    print("\n")  
+
+def create_income_table(db, cursor):
     """ Creates a table called 'income_table" in the database."""
+    
+    cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
+    initial_data = [[1,"Rent", 13000],
+                    [2,"Art sales", 5000],
+                    [3, "Salary", 20000]]
+    
+    cursor.executemany('''INSERT OR REPLACE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
+    db.commit()
     
 def expense_menu():
     """Display the expense management sub-menu.""" 
