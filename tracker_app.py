@@ -1,11 +1,16 @@
-#---Tracker App---#
+# TRACKER APP
 """ This application allows a user to manage his or her budget
 by tracking and managing income and expense categories and values."""
+
+##############################################################################################################
+# IMPORT LIBRARIES
 
 import sqlite3
 import os
 from tabulate import tabulate
 
+##############################################################################################################
+# DATABASE FUNCTIONS
 
 db_file = "data/tracker_db"
 
@@ -38,33 +43,6 @@ def create_expense_table(db, cursor):
     
     cursor.executemany('''INSERT OR REPLACE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
     db.commit()
-    
-def add_expense_category(db,cursor):
-     
-    """ Adds an expense category to the expenses table"""
-    # REMEMBER TO ADD FAIL SAFE TRY-EXCEPT BLOCKS
-    
-    new_expense = input("Please enter the expense category you would like to add:")
-    cursor.execute('''SELECT max(id) FROM expenses''')
-    last_id = cursor.fetchone()[0]
-
-    if last_id == None:
-        last_id = 1
-    else:
-        last_id +=1
-
-    new_category = [last_id, new_expense, 0]
-    cursor.execute('''INSERT OR REPLACE INTO expenses(id, category, amount) VALUES(?,?,?)''', new_category)
-    db.commit()
-
-def view_tables(table_name, cursor):
-    query = f"SELECT * FROM {table_name}"
-    cursor.execute(query)
-    table = cursor.fetchall()
-    print(f"Showing entries in {table_name}:")
-    
-    print(tabulate(table, headers=["ID","CATEGORY","AMOUNT"]))
-    print("\n")  
 
 def create_income_table(db, cursor):
     """ Creates a table called 'income_table" in the database."""
@@ -76,7 +54,77 @@ def create_income_table(db, cursor):
     
     cursor.executemany('''INSERT OR REPLACE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
     db.commit()
+
+create_expense_table(db, cursor)
+create_income_table(db,cursor)
+  
+def add_category(table_name, db, cursor):
+     
+    """ Adds an expense category to the expenses table"""
+    # REMEMBER TO ADD FAIL SAFE TRY-EXCEPT BLOCKS
+    max_query = f"SELECT max(id) FROM {table_name}"
+    insert_query = f"INSERT OR REPLACE INTO {table_name}(id, category, amount) VALUES(?,?,?)"
     
+    new_expense = input("Please enter the expense category you would like to add:")
+    cursor.execute(max_query)
+    last_id = cursor.fetchone()[0]
+
+    if last_id == None:
+        last_id = 1
+    else:
+        last_id +=1
+
+    new_category = [last_id, new_expense, 0]
+    cursor.execute(insert_query, new_category)
+    db.commit()
+
+def remove_category(table_name, db, cursor):
+    category = input("What category would you like to remove?")
+    delete_query = f"DELETE FROM {table_name} WHERE category = ?"
+    
+    cursor.execute(delete_query, (category,))
+    
+    # INSERT CODE THAT CHECKS IF USER IS SURE !!!!!!!!!
+    db.commit()
+
+def update_amount(table_name, db, cursor):
+    
+    category = input("Specify the category where you want to update amount: ")
+    
+    query = f"SELECT * FROM {table_name} WHERE category = ?"
+    cursor.execute(query, (category,))
+    edit_item = cursor.fetchone()
+    print(f"You are making changes to {edit_item[1]} and amount of R{edit_item[2]}")
+    
+    new_amount = float(input("Specify the new amount: "))
+    
+    ##### Not quire rounding correctly to database !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    new_amount = round(new_amount, 2)
+    print(new_amount)
+    
+    update_query = f"UPDATE {table_name} SET amount = ? WHERE category = ?"
+    
+    print(update_query)
+    print(category, new_amount)
+    cursor.execute(update_query, (new_amount, category))
+
+    db.commit()
+
+    
+def view_tables(table_name, cursor):
+    query = f"SELECT * FROM {table_name}"
+    cursor.execute(query)
+    table = cursor.fetchall()
+    print(f"Showing entries in {table_name}:")
+    
+    # https://stackoverflow.com/questions/37079957/pythons-tabulate-number-of-decimal
+    # Accessed 16 Sep 2023, Wanted to know how to format numbers using tabulate module
+    print(tabulate(table, headers=["ID","CATEGORY","AMOUNT (RANDS)"], floatfmt=".2f"))
+    print("\n")  
+
+##############################################################################################################
+# SUB MENU FUNCTIONS
+
 def expense_menu():
     """Display the expense management sub-menu.""" 
     # INSERT FUNCTION DOCSTRING INFORMATION HERE
@@ -95,11 +143,14 @@ q - Exit expense management\n''').lower()
         
         if user_choice == "a":
             print("You have selected to add an expense category.") 
+            add_category("expenses", db, cursor)
+            view_tables("expenses", cursor)
         
             
         elif user_choice == "u":
             print("You have selected to update an expense amount.")
-        
+            update_amount("expenses", db, cursor)
+            view_tables("expenses", cursor)
         
         elif user_choice == "r":
             print("You have selected to remove an expense category.")
@@ -107,7 +158,7 @@ q - Exit expense management\n''').lower()
             
         elif user_choice == "c":
             print("You have selected to view expense categories.")
-        
+            view_tables("expenses", cursor)
         
         elif user_choice == "v":
             print("You have selected to view your expense history.")
@@ -166,12 +217,15 @@ q - Exit expense management\n''').lower()
     
     return user_choice 
 
+##############################################################################################################
+# MAIN MENU
+
 menu_status = True
 
 user_choice = ""
 
 while menu_status:
-    user_choice = input('''\nWould you like to:
+    user_choice = input('''\nMain Menu Options:
 e - View expense management menu
 i - View income management menu
 b - View budget summary
