@@ -85,6 +85,8 @@ def remove_category(table_name, db, cursor):
     cursor.execute(delete_query, (category,))
     
     # INSERT CODE THAT CHECKS IF USER IS SURE !!!!!!!!!
+    print(f"You have removed category: {category} from {table_name}. ")
+    
     db.commit()
 
 def update_amount(table_name, db, cursor):
@@ -154,7 +156,8 @@ q - Exit expense management\n''').lower()
         
         elif user_choice == "r":
             print("You have selected to remove an expense category.")
-        
+            remove_category("expenses", db, cursor)
+            view_tables("expenses", cursor)
             
         elif user_choice == "c":
             print("You have selected to view expense categories.")
@@ -162,7 +165,7 @@ q - Exit expense management\n''').lower()
         
         elif user_choice == "v":
             print("You have selected to view your expense history.")
-            
+            view_tables("expenses", cursor)           
         
         elif user_choice == "q":
             print("Exiting expense management.")
@@ -190,19 +193,22 @@ q - Exit expense management\n''').lower()
     while income_management:
         if user_choice == "a":
             print("You have selected to add an income category.")
-
+            add_category("incomes", db, cursor)
+            view_tables("incomes", cursor)
        
         elif user_choice == "u":
             print("You have selected to update an income amount.")
-
+            update_amount("incomes", db, cursor)
+            view_tables("incomes", cursor)
         
         elif user_choice == "r":
             print("You have selected to remove an income category.")
-
+            remove_category("incomes", db, cursor)
+            view_tables("incomes", cursor)
             
         elif user_choice == "c":
             print("You have selected to view income categories.")
-
+            view_tables("incomes", cursor)
         
         elif user_choice == "v":
             print("You have selected to view your income history.")
