@@ -16,6 +16,7 @@ db_file = "data/tracker_db"
 
 def create_connection(db_file):
     """Attempt connecting to budget database and return error if unable"""
+    
     db = None
     
     try:
@@ -37,9 +38,7 @@ def create_expense_table(db, cursor):
     """ Creates a table called 'expense_table" in the database."""
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
-    initial_data = [[1,"Mortgages", 13000],
-                    [2,"Electricity", 5000],
-                    [3, "Food", 5200.01]]
+    initial_data = [[1,"None", 0]]
     
     cursor.executemany('''INSERT OR REPLACE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
     db.commit()
@@ -48,9 +47,7 @@ def create_income_table(db, cursor):
     """ Creates a table called 'income_table" in the database."""
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
-    initial_data = [[1,"Rent", 13000],
-                    [2,"Art sales", 5000],
-                    [3, "Salary", 20000]]
+    initial_data = [[1,"None", 13000]],
     
     cursor.executemany('''INSERT OR REPLACE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
     db.commit()
@@ -59,9 +56,10 @@ create_expense_table(db, cursor)
 create_income_table(db,cursor)
   
 def add_category(table_name, db, cursor):
-     
     """ Adds an expense category to the expenses table"""
+    
     # REMEMBER TO ADD FAIL SAFE TRY-EXCEPT BLOCKS
+    # TEST THIS CODE
     max_query = f"SELECT max(id) FROM {table_name}"
     insert_query = f"INSERT OR REPLACE INTO {table_name}(id, category, amount) VALUES(?,?,?)"
     
@@ -69,13 +67,14 @@ def add_category(table_name, db, cursor):
     cursor.execute(max_query)
     last_id = cursor.fetchone()[0]
 
-    if last_id == None:
-        last_id = 1
+    if last_id == 1:
+        new_category = [last_id, new_expense, 0]
+        cursor.execute(insert_query, new_category)
     else:
         last_id +=1
+        new_category = [last_id, new_expense, 0]
+        cursor.execute(insert_query, new_category)
 
-    new_category = [last_id, new_expense, 0]
-    cursor.execute(insert_query, new_category)
     db.commit()
 
 def remove_category(table_name, db, cursor):
@@ -90,9 +89,10 @@ def remove_category(table_name, db, cursor):
     db.commit()
 
 def update_amount(table_name, db, cursor):
+    print("Displaying category items:")
+    view_tables(table_name, cursor)
     
     category = input("Specify the category where you want to update amount: ")
-    
     query = f"SELECT * FROM {table_name} WHERE category = ?"
     cursor.execute(query, (category,))
     edit_item = cursor.fetchone()
@@ -112,7 +112,6 @@ def update_amount(table_name, db, cursor):
 
     db.commit()
 
-    
 def view_tables(table_name, cursor):
     query = f"SELECT * FROM {table_name}"
     cursor.execute(query)
@@ -123,6 +122,31 @@ def view_tables(table_name, cursor):
     # Accessed 16 Sep 2023, Wanted to know how to format numbers using tabulate module
     print(tabulate(table, headers=["ID","CATEGORY","AMOUNT (RANDS)"], floatfmt=".2f"))
     print("\n")  
+
+def budget_summary(income_table, expense_table, db, cursor):
+    query_total_income = f"SELECT Total(amount) FROM {income_table}"
+    query_total_expenses = f"SELECT Total(amount) FROM {expense_table}"
+    
+    cursor.execute(query_total_income)
+    total_income = cursor.fetchone()[0]
+    total_income = format(float(total_income), ".2f")
+    
+    cursor.execute(query_total_expenses)
+    total_expenses = cursor.fetchone()[0]
+    total_expenses = format(float(total_expenses),".2f")
+
+    budget = format(float(total_income) - float(total_expenses), ".2f")
+    budget = f"R{budget}"
+    total_income = f"R{total_income}"
+    total_expenses = f"R{total_expenses}"
+    
+    table = [["Income:", total_income],
+             ["Expenses:", total_expenses],
+             ["Budget", budget]]
+    
+    print(tabulate(table, headers = ["CATEGORY", "AMOUNT (Rands)"]))
+    
+
 
 ##############################################################################################################
 # SUB MENU FUNCTIONS
@@ -249,10 +273,11 @@ Enter selection:\n''').lower()
         
     elif user_choice == "b":
         print("You have selected to view your budget summary.") 
+        budget_summary("incomes","expenses", db, cursor)
         
     elif user_choice == "q":
         menu_status = False
-        print("Good bye!")
+        print("Exiting programme. Good bye!")
         db.close()
     
     else:
