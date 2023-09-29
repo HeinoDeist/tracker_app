@@ -2,6 +2,12 @@
 """ This application allows a user to manage his or her budget
 by tracking and managing income and expense categories and values."""
 
+# To do
+# 1 - try-except blocks for SQL code
+# 2 - Menu options to be verified
+# 3 - Write Sphinx documentation
+# 4 - Testing
+
 ##############################################################################################################
 # IMPORT LIBRARIES
 
@@ -40,16 +46,18 @@ def create_expense_table(db, cursor):
     cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
     initial_data = [[1,"None", 0]]
     
-    cursor.executemany('''INSERT OR REPLACE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
+    # https://stackoverflow.com/questions/29721656/most-efficient-way-to-do-a-sql-insert-if-not-exists
+    # Accessed 29 Sep 2023, How to ignore if data already exists. 
+    cursor.executemany('''INSERT OR IGNORE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
     db.commit()
 
 def create_income_table(db, cursor):
     """ Creates a table called 'income_table" in the database."""
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
-    initial_data = [[1,"None", 13000]],
+    initial_data = [[1,"None", 0]]
     
-    cursor.executemany('''INSERT OR REPLACE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
+    cursor.executemany('''INSERT OR IGNORE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
     db.commit()
 
 create_expense_table(db, cursor)
@@ -61,13 +69,19 @@ def add_category(table_name, db, cursor):
     # REMEMBER TO ADD FAIL SAFE TRY-EXCEPT BLOCKS
     # TEST THIS CODE
     max_query = f"SELECT max(id) FROM {table_name}"
+    status_query = f"SELECT * FROM {table_name} WHERE id = ?"
     insert_query = f"INSERT OR REPLACE INTO {table_name}(id, category, amount) VALUES(?,?,?)"
     
     new_expense = input("Please enter the expense category you would like to add:")
     cursor.execute(max_query)
     last_id = cursor.fetchone()[0]
-
-    if last_id == 1:
+    last_id = int(last_id)
+    cursor.execute(status_query,(last_id,))
+    table_status = cursor.fetchone()[1]
+    
+    print(table_status + "stuff")
+    
+    if last_id == 1 and table_status == "None":
         new_category = [last_id, new_expense, 0]
         cursor.execute(insert_query, new_category)
     else:
@@ -163,8 +177,8 @@ def expense_menu():
 a - Add expense categories
 u - Update expense amount
 r - Remove expense category
-c - View expense categories
-v - View expense history
+c - View expense categories and amounts
+v - View expense summary and total
 q - Exit expense management\n''').lower()
         
         if user_choice == "a":
@@ -204,17 +218,18 @@ def income_menu():
     """Display the income management sub-menu.""" 
     # INSERT FUNCTION DOCSTRING INFORMATION HERE
     
-    user_choice = input('''\nWould you like to:
-a - Add expense categories
-u - Update expense amount
-r - Remove expense category
-c - View income categories
-v - View expense history
-q - Exit expense management\n''').lower()
+
     
     income_management = True
     
     while income_management:
+        user_choice = input('''\nWould you like to:
+a - Add income categories
+u - Update income amount
+r - Remove income category
+c - View income categories and amounts
+v - View income summary and total
+q - Exit expense management\n''').lower()
         if user_choice == "a":
             print("You have selected to add an income category.")
             add_category("incomes", db, cursor)
