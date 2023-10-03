@@ -20,6 +20,7 @@ from tabulate import tabulate
 
 db_file = "data/tracker_db"
 
+
 def create_connection(db_file):
     """Attempt connecting to budget database and return error if unable"""
     
@@ -41,28 +42,38 @@ def create_connection(db_file):
 db, cursor, menu_status = create_connection(db_file)
 
 def create_expense_table(db, cursor):
-    """ Creates a table called 'expense_table" in the database."""
+    """ Creates a table called 'expense_table' in the database."""
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
-    initial_data = [[1,"None", 0]]
+    try:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
+        initial_data = [[1,"None", 0]]
     
-    # https://stackoverflow.com/questions/29721656/most-efficient-way-to-do-a-sql-insert-if-not-exists
-    # Accessed 29 Sep 2023, How to ignore if data already exists. 
-    cursor.executemany('''INSERT OR IGNORE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
-    db.commit()
+        # https://stackoverflow.com/questions/29721656/most-efficient-way-to-do-a-sql-insert-if-not-exists
+        # Accessed 29 Sep 2023, How to ignore if data already exists. 
+        cursor.executemany('''INSERT OR IGNORE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
+        db.commit()
+        
+    except Exception as error_msg:
+        db.rollback()
+        print("Unexpected error. Table might already exist")
 
 def create_income_table(db, cursor):
     """ Creates a table called 'income_table" in the database."""
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
-    initial_data = [[1,"None", 0]]
+    try:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
+        initial_data = [[1,"None", 0]]
     
-    cursor.executemany('''INSERT OR IGNORE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
-    db.commit()
+        cursor.executemany('''INSERT OR IGNORE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
+        db.commit()
+        
+    except Exception as error_msg:
+        db.rollback()
+        print("Unexpected error. Table might already exist")
 
 create_expense_table(db, cursor)
 create_income_table(db,cursor)
-  
+
 def add_category(table_name, db, cursor):
     """ Adds an expense category to the expenses table"""
     
@@ -72,61 +83,86 @@ def add_category(table_name, db, cursor):
     status_query = f"SELECT * FROM {table_name} WHERE id = ?"
     insert_query = f"INSERT OR REPLACE INTO {table_name}(id, category, amount) VALUES(?,?,?)"
     
-    new_expense = input("Please enter the expense category you would like to add:")
-    cursor.execute(max_query)
-    last_id = cursor.fetchone()[0]
-    last_id = int(last_id)
-    cursor.execute(status_query,(last_id,))
-    table_status = cursor.fetchone()[1]
+    new_expense = None
     
-    print(table_status + "stuff")
-    
-    if last_id == 1 and table_status == "None":
-        new_category = [last_id, new_expense, 0]
-        cursor.execute(insert_query, new_category)
-    else:
-        last_id +=1
-        new_category = [last_id, new_expense, 0]
-        cursor.execute(insert_query, new_category)
+    try: 
+        new_expense = input("Please enter the expense category you would like to add:")
+        cursor.execute(max_query)
+        last_id = cursor.fetchone()[0]
+        last_id = int(last_id)
+        cursor.execute(status_query,(last_id,))
+        table_status = cursor.fetchone()[1]
+        
+        # print(table_status + "stuff")
+        
+        if last_id == 1 and table_status == "None":
+            new_category = [last_id, new_expense, 0]
+            cursor.execute(insert_query, new_category)
+            
+        else:
+            last_id +=1
+            new_category = [last_id, new_expense, 0]
+            cursor.execute(insert_query, new_category)
 
-    db.commit()
+        db.commit()
+        
+    except Exception as error_msg:
+        db.rollback()
+        print("Unable to create category.")
 
 def remove_category(table_name, db, cursor):
-    category = input("What category would you like to remove?")
-    delete_query = f"DELETE FROM {table_name} WHERE category = ?"
     
-    cursor.execute(delete_query, (category,))
+    category = None
     
-    # INSERT CODE THAT CHECKS IF USER IS SURE !!!!!!!!!
-    print(f"You have removed category: {category} from {table_name}. ")
-    
-    db.commit()
+    try:
+        category = input("What category would you like to remove?")
+        delete_query = f"DELETE FROM {table_name} WHERE category = ?"
+        
+        cursor.execute(delete_query, (category,))
+        
+        # INSERT CODE THAT CHECKS IF USER IS SURE !!!!!!!!!
+        print(f"You have removed category: {category} from {table_name}. ")
+        
+        db.commit()
+        
+    except Exception as error_msg:
+        db.rollback()
+        print("Unable to remove category.")
 
 def update_amount(table_name, db, cursor):
     print("Displaying category items:")
     view_tables(table_name, cursor)
     
-    category = input("Specify the category where you want to update amount: ")
-    query = f"SELECT * FROM {table_name} WHERE category = ?"
-    cursor.execute(query, (category,))
-    edit_item = cursor.fetchone()
-    print(f"You are making changes to {edit_item[1]} and amount of R{edit_item[2]}")
+    category = None
     
-    new_amount = float(input("Specify the new amount: "))
-    
-    ##### Not quire rounding correctly to database !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    new_amount = round(new_amount, 2)
-    print(new_amount)
-    
-    update_query = f"UPDATE {table_name} SET amount = ? WHERE category = ?"
-    
-    print(update_query)
-    print(category, new_amount)
-    cursor.execute(update_query, (new_amount, category))
+    try:
+        category = input("Specify the category where you want to update amount: ")
+        query = f"SELECT * FROM {table_name} WHERE category = ?"
+        cursor.execute(query, (category,))
+        edit_item = cursor.fetchone()
+        print(f"You are making changes to {edit_item[1]} and amount of R{edit_item[2]}")
+        
+        new_amount = float(input("Specify the new amount: "))
+        
+        ##### Not quire rounding correctly to database !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        new_amount = round(new_amount, 2)
+        print(new_amount)
+        
+        update_query = f"UPDATE {table_name} SET amount = ? WHERE category = ?"
+        
+        print(update_query)
+        print(category, new_amount)
+        cursor.execute(update_query, (new_amount, category))
 
-    db.commit()
+        db.commit()
+        
+    except Exception as error_msg:
+        db.rollback()
+        print("Unable to update.")
 
 def view_tables(table_name, cursor):
+    """ Views both expense or income tables in net format."""
+    
     query = f"SELECT * FROM {table_name}"
     cursor.execute(query)
     table = cursor.fetchall()
@@ -138,35 +174,40 @@ def view_tables(table_name, cursor):
     print("\n")  
 
 def budget_summary(income_table, expense_table, db, cursor):
+    """ Function calculates difference between income and spend and outputs result."""
+    
     query_total_income = f"SELECT Total(amount) FROM {income_table}"
     query_total_expenses = f"SELECT Total(amount) FROM {expense_table}"
     
-    cursor.execute(query_total_income)
-    total_income = cursor.fetchone()[0]
-    total_income = format(float(total_income), ".2f")
-    
-    cursor.execute(query_total_expenses)
-    total_expenses = cursor.fetchone()[0]
-    total_expenses = format(float(total_expenses),".2f")
+    try: 
+        cursor.execute(query_total_income)
+        total_income = cursor.fetchone()[0]
+        total_income = format(float(total_income), ".2f")
+        
+        cursor.execute(query_total_expenses)
+        total_expenses = cursor.fetchone()[0]
+        total_expenses = format(float(total_expenses),".2f")
 
-    budget = format(float(total_income) - float(total_expenses), ".2f")
-    budget = f"R{budget}"
-    total_income = f"R{total_income}"
-    total_expenses = f"R{total_expenses}"
+        budget = format(float(total_income) - float(total_expenses), ".2f")
+        budget = f"R{budget}"
+        total_income = f"R{total_income}"
+        total_expenses = f"R{total_expenses}"
+        
+        table = [["Income:", total_income],
+                ["Expenses:", total_expenses],
+                ["Budget", budget]]
+        
+        print(tabulate(table, headers = ["CATEGORY", "AMOUNT (Rands)"]))
     
-    table = [["Income:", total_income],
-             ["Expenses:", total_expenses],
-             ["Budget", budget]]
-    
-    print(tabulate(table, headers = ["CATEGORY", "AMOUNT (Rands)"]))
-    
+    except Exception as error_msg:
+        print("Unable to extract budget summary.")
 
 
 ##############################################################################################################
 # SUB MENU FUNCTIONS
 
 def expense_menu():
-    """Display the expense management sub-menu.""" 
+    """ Display the expense management sub-menu.""" 
     # INSERT FUNCTION DOCSTRING INFORMATION HERE
     
     expense_management = True
@@ -215,10 +256,8 @@ q - Exit expense management\n''').lower()
     return user_choice
 
 def income_menu():
-    """Display the income management sub-menu.""" 
+    """ Display the income management sub-menu.""" 
     # INSERT FUNCTION DOCSTRING INFORMATION HERE
-    
-
     
     income_management = True
     
@@ -265,10 +304,11 @@ q - Exit expense management\n''').lower()
 ##############################################################################################################
 # MAIN MENU
 
-menu_status = True
+menu_status = True      # User changes status to False when selecting 'Exit' option. 
 
 user_choice = ""
 
+# Loops over menu options and enters sub-menu items based on selection. 
 while menu_status:
     user_choice = input('''\nMain Menu Options:
 e - View expense management menu
@@ -280,17 +320,18 @@ Enter selection:\n''').lower()
     
     if user_choice == "e":
        print("You have selected the expense menu.") 
-       user_choice = expense_menu()
+       user_choice = expense_menu()         # Calls the expense sub-menu function. 
        
     elif user_choice == "i":
         print("You have selected the income menu.") 
-        user_choice = income_menu()
+        user_choice = income_menu()         # Calls the income sub-menu function. 
         
     elif user_choice == "b":
         print("You have selected to view your budget summary.") 
-        budget_summary("incomes","expenses", db, cursor)
+        budget_summary("incomes","expenses", db, cursor)        # Calls the budget summary function
         
-    elif user_choice == "q":
+    elif user_choice == "q": 
+        # Set menu_status to false on exit to exit menu while-loop and programme.    
         menu_status = False
         print("Exiting programme. Good bye!")
         db.close()
