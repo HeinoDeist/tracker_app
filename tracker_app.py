@@ -9,6 +9,7 @@ https://github.com/HeinoDeist/tracker_app
 # 1 - try-except blocks for SQL code
 # 2 - Menu options to be verified
 # 3 - Write Sphinx documentation
+# 4 - Write code to check if category already exists to avoid duplicates in the tables
 # 4 - Testing
 
 ##############################################################################################################
@@ -58,7 +59,8 @@ def create_expense_table(db, cursor):
     """ Creates a table called 'expense_table' in the database if nothing currently exists
     or ignores if table does exist.
     :param list initial_data: Dummy-data to initialise table
-    :returns: Expense table created in database 'db'
+    :raises Exception: Raises error when unable to create table and does db rollback.
+    :returns: Expense table created in database 'db' and commits db
     """
     
     try:
@@ -78,7 +80,7 @@ def create_income_table(db, cursor):
     """ Creates a table called 'income_table" in the database if nothing currently exists
     or ignores if table does exist
     param list initial_data: Dummy-data to initialise table.
-    :returns: Income table created in database 'db'
+    :returns: Income table created in database 'db' and commits db
     """
     
     try:
@@ -139,7 +141,11 @@ def add_category(table_name, db, cursor):
 
 def remove_category(table_name, db, cursor):
     """ Removes an income or expense category from either the income or expense table
-    
+    :param str category: Name of category to be removed from table
+    :param str delete_query: String query to delete category from given table name
+    :param str table_name: Name of relevant table to be modified in the database
+    :raises Exception: Error raised when unable to execute query or find category and does db rollback
+    :returns: Income or expense table where relevant category has been removed and commits database
     """
     category = None
     
@@ -159,6 +165,16 @@ def remove_category(table_name, db, cursor):
         print("Unable to remove category.")
 
 def update_amount(table_name, db, cursor):
+    """ Changes the amount currently allocated to an income or expense item
+    :param str table_name: Name of relevant income or expense table to be modified
+    :param str category: Name of category where amount is to be updated
+    :param str query: String query to select data from table specified
+    :param float new_amount: The updated amount to be allocated to the expense or income item
+    :param str update_query: Query string to set new values for specified category and table
+    :raises Exception: Error message when unable to update amount and does db rollback
+    :returns: Updated income or expense amount in relevant table and commits db
+    """ 
+
     print("Displaying category items:")
     view_tables(table_name, cursor)
     
@@ -190,7 +206,11 @@ def update_amount(table_name, db, cursor):
         print("Unable to update.")
 
 def view_tables(table_name, cursor):
-    """ Views both expense or income tables in net format."""
+    """ Views both expense or income tables in net format.
+    :param str table_name: Name of table to be displayed
+    :param str query: String query to retrieve all data from specified table
+    :returns: Tabulate table categories and amounts in readable format
+    """
     
     query = f"SELECT * FROM {table_name}"
     cursor.execute(query)
@@ -203,7 +223,16 @@ def view_tables(table_name, cursor):
     print("\n")  
 
 def budget_summary(income_table, expense_table, db, cursor):
-    """ Function calculates difference between income and spend and outputs result."""
+    """ Function calculates difference between income and spend and outputs result.
+    :param str query_total_income: Query to calculate total from income table
+    :param str query_total_expenses: Query to calculate total from expenses table
+    :param float total_income: Sum of all income categories formatted to two decimals
+    :param float total_expenses: Sum of all expense categories formatted to two decimals
+    :param float budget: Difference between income and expense categories
+    :param list table: Prepares budget item summary for tabulate function
+    :raises Exception: Raises error message when unable to perform queries
+    :returns: Visual output of budget summary table
+    """
     
     query_total_income = f"SELECT Total(amount) FROM {income_table}"
     query_total_expenses = f"SELECT Total(amount) FROM {expense_table}"
