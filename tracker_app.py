@@ -1,6 +1,9 @@
 # TRACKER APP
 """ This application allows a user to manage his or her budget
-by tracking and managing income and expense categories and values."""
+by tracking and managing income and expense categories and values.
+This app has been version controlled and can be accessed at:
+https://github.com/HeinoDeist/tracker_app
+"""
 
 # To do
 # 1 - try-except blocks for SQL code
@@ -11,18 +14,27 @@ by tracking and managing income and expense categories and values."""
 ##############################################################################################################
 # IMPORT LIBRARIES
 
+""" Import sqlite3 and tabulate libraries. Sqlite3 performs database manipulation
+and tabulate is used to represent output in neat and readable format.
+"""
 import sqlite3
-import os
 from tabulate import tabulate
 
 ##############################################################################################################
 # DATABASE FUNCTIONS
 
+# Reference the path to the database file.
 db_file = "data/tracker_db"
 
 
 def create_connection(db_file):
-    """Attempt connecting to budget database and return error if unable"""
+    """Attempt connecting to budget database and return error if unable.
+    :param db: Database object
+    :param cursor: Cursor object
+    :param bool using_app: Indicates whether app is in use
+    :raises Exception: Raises error when unable to connect
+    :returns: Active database connection, cursor and app_status is True
+    """
     
     db = None
     
@@ -39,10 +51,15 @@ def create_connection(db_file):
     # Database is closed upon exit of main menu
     return db, cursor, using_app
 
+# Assign variable and objects by calling create_connection function.
 db, cursor, menu_status = create_connection(db_file)
 
 def create_expense_table(db, cursor):
-    """ Creates a table called 'expense_table' in the database."""
+    """ Creates a table called 'expense_table' in the database if nothing currently exists
+    or ignores if table does exist.
+    :param list initial_data: Dummy-data to initialise table
+    :returns: Expense table created in database 'db'
+    """
     
     try:
         cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
@@ -58,7 +75,11 @@ def create_expense_table(db, cursor):
         print("Unexpected error. Table might already exist")
 
 def create_income_table(db, cursor):
-    """ Creates a table called 'income_table" in the database."""
+    """ Creates a table called 'income_table" in the database if nothing currently exists
+    or ignores if table does exist
+    param list initial_data: Dummy-data to initialise table.
+    :returns: Income table created in database 'db'
+    """
     
     try:
         cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
@@ -75,33 +96,39 @@ create_expense_table(db, cursor)
 create_income_table(db,cursor)
 
 def add_category(table_name, db, cursor):
-    """ Adds an expense category to the expenses table"""
+    """ Adds a category to either an income or expense table
+    :param str table_name: Name of the table where category is added
+    :param str new_addition: Name of new income or expense category 
+    :param str max_query: Query string to find last row
+    :param str status_query: Query string used to find category name that matches id
+    :param str insert_query: Query string that runs to insert new row
+    :param int last_id: Value assigned to last entry primary key in the database table
+    :returns: A new income or expense category added to either the income or expense table
+    """
     
-    # REMEMBER TO ADD FAIL SAFE TRY-EXCEPT BLOCKS
-    # TEST THIS CODE
     max_query = f"SELECT max(id) FROM {table_name}"
     status_query = f"SELECT * FROM {table_name} WHERE id = ?"
     insert_query = f"INSERT OR REPLACE INTO {table_name}(id, category, amount) VALUES(?,?,?)"
     
-    new_expense = None
+    new_addition = None
     
     try: 
-        new_expense = input("Please enter the expense category you would like to add:")
+        new_addition = input("Please enter the expense category you would like to add:")
         cursor.execute(max_query)
         last_id = cursor.fetchone()[0]
         last_id = int(last_id)
         cursor.execute(status_query,(last_id,))
         table_status = cursor.fetchone()[1]
         
-        # print(table_status + "stuff")
-        
+        # Check if last primary key (id) corresponds to the initial default value
+        # If it's 'None' then replace, otherwise add a new row.
         if last_id == 1 and table_status == "None":
-            new_category = [last_id, new_expense, 0]
+            new_category = [last_id, new_addition, 0]
             cursor.execute(insert_query, new_category)
             
         else:
             last_id +=1
-            new_category = [last_id, new_expense, 0]
+            new_category = [last_id, new_addition, 0]
             cursor.execute(insert_query, new_category)
 
         db.commit()
@@ -111,7 +138,9 @@ def add_category(table_name, db, cursor):
         print("Unable to create category.")
 
 def remove_category(table_name, db, cursor):
+    """ Removes an income or expense category from either the income or expense table
     
+    """
     category = None
     
     try:
