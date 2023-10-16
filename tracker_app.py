@@ -1,8 +1,10 @@
 # TRACKER APP
-""" This application allows a user to manage his or her budget
-by tracking and managing income and expense categories and values.
+""" This application, developed using only the finest key-strokes,
+allows a user to manage his or her budget by tracking and managing 
+income and expense categories and values.
 This app has been version controlled and can be accessed at:
 https://github.com/HeinoDeist/tracker_app
+
 """
 
 # To do
@@ -10,7 +12,9 @@ https://github.com/HeinoDeist/tracker_app
 # 2 - Menu options to be verified
 # 3 - Write Sphinx documentation
 # 4 - Write code to check if category already exists to avoid duplicates in the tables
-# 4 - Testing
+# 5 - Testing
+# 6 - Fail-safe data entry (currency can't contain text)
+# 7 - Fail-safe duplication of category names - can't have duplicate names
 
 ##############################################################################################################
 # IMPORT LIBRARIES
@@ -115,7 +119,21 @@ def add_category(table_name, db, cursor):
     new_addition = None
     
     try: 
-        new_addition = input("Please enter the expense category you would like to add:")
+        
+        check_query = f"SELECT category FROM {table_name}"
+        cursor.execute(check_query)
+        category_list = cursor.fetchall()
+        clean_category_list = [item[0] for item in category_list]
+        print(clean_category_list)
+        
+        while True:
+            # Implementing loop to ensure user enters category that does not already exist
+            new_addition = input("Please enter the category you would like to add:")
+            if new_addition in clean_category_list:
+                print(f"That category already exists in {table_name}. Change the category or font.")
+            else:
+                break
+        
         cursor.execute(max_query)
         last_id = cursor.fetchone()[0]
         last_id = int(last_id)
