@@ -25,6 +25,7 @@ and tabulate is used to represent output in neat and readable format.
 import sqlite3
 from tabulate import tabulate
 
+
 ##############################################################################################################
 # DATABASE FUNCTIONS
 
@@ -56,8 +57,10 @@ def create_connection(db_file):
     # Database is closed upon exit of main menu
     return db, cursor, using_app
 
+
 # Assign variable and objects by calling create_connection function.
 db, cursor, menu_status = create_connection(db_file)
+
 
 def create_expense_table(db, cursor):
     """ Creates a table called 'expense_table' in the database if nothing currently exists
@@ -80,6 +83,7 @@ def create_expense_table(db, cursor):
         db.rollback()
         print("Unexpected error. Table might already exist")
 
+
 def create_income_table(db, cursor):
     """ Creates a table called 'income_table" in the database if nothing currently exists
     or ignores if table does exist
@@ -98,8 +102,10 @@ def create_income_table(db, cursor):
         db.rollback()
         print("Unexpected error. Table might already exist")
 
+
 create_expense_table(db, cursor)
 create_income_table(db,cursor)
+
 
 def add_category(table_name, db, cursor):
     """ Adds a category to either an income or expense table
@@ -157,6 +163,7 @@ def add_category(table_name, db, cursor):
         db.rollback()
         print("Unable to create category.")
 
+
 def remove_category(table_name, db, cursor):
     """ Removes an income or expense category from either the income or expense table
     :param str category: Name of category to be removed from table
@@ -182,6 +189,7 @@ def remove_category(table_name, db, cursor):
         db.rollback()
         print("Unable to remove category.")
 
+
 def update_amount(table_name, db, cursor):
     """ Changes the amount currently allocated to an income or expense item
     :param str table_name: Name of relevant income or expense table to be modified
@@ -205,9 +213,13 @@ def update_amount(table_name, db, cursor):
         edit_item = cursor.fetchone()
         print(f"You are making changes to {edit_item[1]} and amount of R{edit_item[2]}")
         
-        new_amount = float(input("Specify the new amount: "))
+        while True:
+            try:
+                new_amount = float(input("Specify the new amount: "))
+                break
+            except Exception:
+                print("Please enter a valid number.")
         
-        ##### Not quire rounding correctly to database !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         new_amount = round(new_amount, 2)
         print(new_amount)
         
@@ -221,7 +233,8 @@ def update_amount(table_name, db, cursor):
         
     except Exception as error_msg:
         db.rollback()
-        print("Unable to update.")
+        print("Unable to update. Please enter a valid category (case sensitive).")
+
 
 def view_tables(table_name, cursor):
     """ Views both expense or income tables in net format.
@@ -239,6 +252,7 @@ def view_tables(table_name, cursor):
     # Accessed 16 Sep 2023, Wanted to know how to format numbers using tabulate module
     print(tabulate(table, headers=["ID","CATEGORY","AMOUNT (RANDS)"], floatfmt=".2f"))
     print("\n")  
+
 
 def budget_summary(income_table, expense_table, db, cursor):
     """ Function calculates difference between income and spend and outputs result.
@@ -282,20 +296,24 @@ def budget_summary(income_table, expense_table, db, cursor):
 ##############################################################################################################
 # SUB MENU FUNCTIONS
 
+
 def expense_menu():
-    """ Display the expense management sub-menu.""" 
-    # INSERT FUNCTION DOCSTRING INFORMATION HERE
+    """ Display the expense management sub-menu.
+    :param bool expense_management: Indicates true when menu is active
+    :param str user_choice: Selected menu option
+    :returns: The menu option selected by the user
+    """ 
     
     expense_management = True
     
+    # Loop stays in expense management sub-menu until exited.
     while expense_management:
         
         user_choice = input('''\nWould you like to:
 a - Add expense categories
 u - Update expense amount
 r - Remove expense category
-c - View expense categories and amounts
-v - View expense summary and total
+v - View expense categories, amounts and total
 q - Exit expense management\n''').lower()
         
         if user_choice == "a":
@@ -313,13 +331,9 @@ q - Exit expense management\n''').lower()
             print("You have selected to remove an expense category.")
             remove_category("expenses", db, cursor)
             view_tables("expenses", cursor)
-            
-        elif user_choice == "c":
-            print("You have selected to view expense categories.")
-            view_tables("expenses", cursor)
         
         elif user_choice == "v":
-            print("You have selected to view your expense history.")
+            print("You have selected to view your expense summary.")
             view_tables("expenses", cursor)           
         
         elif user_choice == "q":
@@ -327,24 +341,31 @@ q - Exit expense management\n''').lower()
             expense_management = False 
 
         else:
+            # Activates when no valid menu option is selected
             print("Please select a valid menu option.")
     
     return user_choice
 
+
 def income_menu():
-    """ Display the income management sub-menu.""" 
+    """ Display the income management sub-menu.
+    :param bool income_management: Indicates true when menu is active
+    :param str user_choice: Selected menu option
+    :returns: The menu option selected by the user
+    """ 
     # INSERT FUNCTION DOCSTRING INFORMATION HERE
     
     income_management = True
     
+    # Loop stays in income management menu until exited.
     while income_management:
         user_choice = input('''\nWould you like to:
 a - Add income categories
 u - Update income amount
 r - Remove income category
-c - View income categories and amounts
-v - View income summary and total
-q - Exit expense management\n''').lower()
+v - View income categories, amounts and total
+q - Exit income management\n''').lower()
+        
         if user_choice == "a":
             print("You have selected to add an income category.")
             add_category("incomes", db, cursor)
@@ -359,26 +380,28 @@ q - Exit expense management\n''').lower()
             print("You have selected to remove an income category.")
             remove_category("incomes", db, cursor)
             view_tables("incomes", cursor)
-            
-        elif user_choice == "c":
-            print("You have selected to view income categories.")
-            view_tables("incomes", cursor)
         
         elif user_choice == "v":
-            print("You have selected to view your income history.")
-
+            print("You have selected to view your income summary.")
+            view_tables("incomes", cursor)
         
         elif user_choice == "q":
             print("Exiting income management.")
             income_management = False 
 
         else:
+            # Activates when no valid menu option is selected
             print("Please select a valid menu option.")
     
     return user_choice 
 
+
 ##############################################################################################################
 # MAIN MENU
+
+
+''' Main Menu provides user with options to enter expense or income menus, 
+view budget summary or quit programme.'''
 
 menu_status = True      # User changes status to False when selecting 'Exit' option. 
 
@@ -413,4 +436,9 @@ Enter selection:\n''').lower()
         db.close()
     
     else:
+        # Activates when no valid menu options are selected
         print("Please select a valid menu option.")
+
+
+##############################################################################################################
+# END OF CODE     
