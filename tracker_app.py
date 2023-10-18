@@ -1,7 +1,9 @@
 # TRACKER APP
 """ This application, developed using only the finest key-strokes,
 allows a user to manage his or her budget by tracking and managing 
-income and expense categories and values.
+income and expense categories and values. It also allows the user to
+specify goals (or targets) per category and track progress towards 
+overall financial goals.
 This app has been version controlled and can be accessed at:
 https://github.com/HeinoDeist/tracker_app
 
@@ -71,12 +73,12 @@ def create_expense_table(db, cursor):
     """
     
     try:
-        cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
-        initial_data = [[1,"None", 0]]
+        cursor.execute('''CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY, category TEXT, actual REAL, budget REAL)''')
+        initial_data = [[1,"None", 0, 0]]
     
         # https://stackoverflow.com/questions/29721656/most-efficient-way-to-do-a-sql-insert-if-not-exists
         # Accessed 29 Sep 2023, How to ignore if data already exists. 
-        cursor.executemany('''INSERT OR IGNORE INTO expenses(id, category, amount) VALUES(?,?,?)''',initial_data)
+        cursor.executemany('''INSERT OR IGNORE INTO expenses(id, category, actual, budget) VALUES(?,?,?,?)''',initial_data)
         db.commit()
         
     except Exception as error_msg:
@@ -92,10 +94,10 @@ def create_income_table(db, cursor):
     """
     
     try:
-        cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, amount REAL)''')
-        initial_data = [[1,"None", 0]]
+        cursor.execute('''CREATE TABLE IF NOT EXISTS incomes(id INTEGER PRIMARY KEY, category TEXT, actual REAL, budget REAL )''')
+        initial_data = [[1,"None", 0, 0]]
     
-        cursor.executemany('''INSERT OR IGNORE INTO incomes(id, category, amount) VALUES(?,?,?)''',initial_data)
+        cursor.executemany('''INSERT OR IGNORE INTO incomes(id, category, actual, budget) VALUES(?,?,?,?)''',initial_data)
         db.commit()
         
     except Exception as error_msg:
@@ -240,17 +242,34 @@ def view_tables(table_name, cursor):
     """ Views both expense or income tables in net format.
     :param str table_name: Name of table to be displayed
     :param str query: String query to retrieve all data from specified table
+    :param str get_total: String query to get total of amounts
     :returns: Tabulate table categories and amounts in readable format
     """
     
     query = f"SELECT * FROM {table_name}"
+    get_total_actual = f"SELECT Total(actual) from {table_name}"
+    get_total_budget = f"SELECT Total(budget) from {table_name}"
+    
     cursor.execute(query)
     table = cursor.fetchall()
+    
+    cursor.execute(get_total_actual)
+    actual_total = cursor.fetchone()[0]
+    actual_total = format(float(actual_total), ".2f")
+    
+    cursor.execute(get_total_budget)
+    budget_total = cursor.fetchone()[0]
+    budget_total = format(float(budget_total), ".2f")
+    
+    table.append(["","TOTAL",actual_total, budget_total])
+    
+    print(table)
+    
     print(f"Showing entries in {table_name}:")
     
     # https://stackoverflow.com/questions/37079957/pythons-tabulate-number-of-decimal
     # Accessed 16 Sep 2023, Wanted to know how to format numbers using tabulate module
-    print(tabulate(table, headers=["ID","CATEGORY","AMOUNT (RANDS)"], floatfmt=".2f"))
+    print(tabulate(table, headers=["ID","CATEGORY","ACTUAL (RANDS)","BUDGET (RANDS)"], floatfmt=".2f"))
     print("\n")  
 
 
