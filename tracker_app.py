@@ -122,7 +122,7 @@ def add_category(table_name, db, cursor):
     
     max_query = f"SELECT max(id) FROM {table_name}"
     status_query = f"SELECT * FROM {table_name} WHERE id = ?"
-    insert_query = f"INSERT OR REPLACE INTO {table_name}(id, category, amount) VALUES(?,?,?)"
+    insert_query = f"INSERT OR REPLACE INTO {table_name}(id, category, actual, budget) VALUES(?,?,?,?)"
     
     new_addition = None
     
@@ -132,12 +132,12 @@ def add_category(table_name, db, cursor):
         cursor.execute(check_query)
         category_list = cursor.fetchall()
         clean_category_list = [item[0] for item in category_list]
-        print(clean_category_list)
         
         while True:
             # Implementing loop to ensure user enters category that does not already exist
             new_addition = input("Please enter the category you would like to add:")
             if new_addition in clean_category_list:
+                # The user might want to change fonts to assign different meaning to the category
                 print(f"That category already exists in {table_name}. Change the category or font.")
             else:
                 break
@@ -151,12 +151,12 @@ def add_category(table_name, db, cursor):
         # Check if last primary key (id) corresponds to the initial default value
         # If it's 'None' then replace, otherwise add a new row.
         if last_id == 1 and table_status == "None":
-            new_category = [last_id, new_addition, 0]
+            new_category = [last_id, new_addition, 0, 0]
             cursor.execute(insert_query, new_category)
             
         else:
             last_id +=1
-            new_category = [last_id, new_addition, 0]
+            new_category = [last_id, new_addition, 0, 0]
             cursor.execute(insert_query, new_category)
 
         db.commit()
@@ -192,7 +192,7 @@ def remove_category(table_name, db, cursor):
         print("Unable to remove category.")
 
 
-def update_amount(table_name, db, cursor):
+def update_actual(table_name, db, cursor):
     """ Changes the amount currently allocated to an income or expense item
     :param str table_name: Name of relevant income or expense table to be modified
     :param str category: Name of category where amount is to be updated
@@ -217,25 +217,53 @@ def update_amount(table_name, db, cursor):
         
         while True:
             try:
-                new_amount = float(input("Specify the new amount: "))
+                new_actual = float(input("Specify the new amount: "))
                 break
             except Exception:
                 print("Please enter a valid number.")
         
-        new_amount = round(new_amount, 2)
-        print(new_amount)
-        
-        update_query = f"UPDATE {table_name} SET amount = ? WHERE category = ?"
-        
-        print(update_query)
-        print(category, new_amount)
-        cursor.execute(update_query, (new_amount, category))
-
+        new_actual = round(new_actual, 2)
+        update_query = f"UPDATE {table_name} SET actual = ? WHERE category = ?"
+        cursor.execute(update_query, (new_actual, category))
         db.commit()
         
     except Exception as error_msg:
         db.rollback()
         print("Unable to update. Please enter a valid category (case sensitive).")
+
+
+def update_goal(table_name, db, cursor):
+    """ This function allows a user to enter goals, i.e.: budgets for expenses
+    and targets for income categories"""
+    
+    print("Displaying category items:")
+    view_tables(table_name, cursor)
+    
+    category = None
+    
+    try:
+        category = input("Specify the category where you want to update goals: ")
+        query = f"SELECT * FROM {table_name} WHERE category = ?"
+        cursor.execute(query, (category,))
+        edit_item = cursor.fetchone()
+        print(f"You are making changes to {edit_item[1]} and current target of R{edit_item[3]}")
+        
+        while True:
+            try:
+                new_target = float(input("Specify the new target value: "))
+                break
+            except Exception:
+                print("Please enter a valid number.")
+        
+        new_target = round(new_target, 2)
+        update_query = f"UPDATE {table_name} SET budget = ? WHERE category = ?"
+        cursor.execute(update_query, (new_target, category))
+        db.commit()
+        
+    except Exception as error_msg:
+        db.rollback()
+        print("Unable to update. Please enter a valid category (case sensitive).")
+
 
 
 def view_tables(table_name, cursor):
@@ -330,7 +358,8 @@ def expense_menu():
         
         user_choice = input('''\nWould you like to:
 a - Add expense categories
-u - Update expense amount
+u - Update expense amount (actual)
+g - Update expense budget
 r - Remove expense category
 v - View expense categories, amounts and total
 q - Exit expense management\n''').lower()
@@ -340,11 +369,15 @@ q - Exit expense management\n''').lower()
             add_category("expenses", db, cursor)
             view_tables("expenses", cursor)
         
-            
         elif user_choice == "u":
             print("You have selected to update an expense amount.")
-            update_amount("expenses", db, cursor)
+            update_actual("expenses", db, cursor)
             view_tables("expenses", cursor)
+            
+        elif user_choice == "g":
+            print("You have selected to enter a new budget for an item.")
+            update_goal("expenses", db, cursor)
+            view_tables("expenses",cursor)
         
         elif user_choice == "r":
             print("You have selected to remove an expense category.")
@@ -381,6 +414,7 @@ def income_menu():
         user_choice = input('''\nWould you like to:
 a - Add income categories
 u - Update income amount
+g - Update income targets
 r - Remove income category
 v - View income categories, amounts and total
 q - Exit income management\n''').lower()
@@ -392,8 +426,13 @@ q - Exit income management\n''').lower()
        
         elif user_choice == "u":
             print("You have selected to update an income amount.")
-            update_amount("incomes", db, cursor)
+            update_actual("incomes", db, cursor)
             view_tables("incomes", cursor)
+            
+        elif user_choice == "g":
+            print("You have selected to enter a new target for an income category.")
+            update_goal("incomes", db, cursor)
+            view_tables("expenses",cursor)
         
         elif user_choice == "r":
             print("You have selected to remove an income category.")
