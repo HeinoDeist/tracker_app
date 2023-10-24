@@ -9,15 +9,6 @@ https://github.com/HeinoDeist/tracker_app
 
 """
 
-# To do
-# 1 - try-except blocks for SQL code
-# 2 - Menu options to be verified
-# 3 - Write Sphinx documentation
-# 4 - Write code to check if category already exists to avoid duplicates in the tables
-# 5 - Testing
-# 6 - Fail-safe data entry (currency can't contain text)
-# 7 - Fail-safe duplication of category names - can't have duplicate names
-
 ##############################################################################################################
 # IMPORT LIBRARIES
 
@@ -180,12 +171,14 @@ def remove_category(table_name, db, cursor):
         category = input("What category would you like to remove?")
         delete_query = f"DELETE FROM {table_name} WHERE category = ?"
         
-        cursor.execute(delete_query, (category,))
+        user_confirm = input(f"Are you sure you want to remove: {category}?. Type 'Y' to confirm, or anything else to abort.").lower()
         
-        # INSERT CODE THAT CHECKS IF USER IS SURE !!!!!!!!!
-        print(f"You have removed category: {category} from {table_name}. ")
-        
-        db.commit()
+        if user_confirm == "y":  
+            cursor.execute(delete_query, (category,))
+            print(f"You have removed category: {category} from {table_name}. ")
+            db.commit()
+        else:
+            print("No changes made.")
         
     except Exception as error_msg:
         db.rollback()
@@ -197,7 +190,7 @@ def update_actual(table_name, db, cursor):
     :param str table_name: Name of relevant income or expense table to be modified
     :param str category: Name of category where amount is to be updated
     :param str query: String query to select data from table specified
-    :param float new_amount: The updated amount to be allocated to the expense or income item
+    :param float new_actual: The updated amount to be allocated to the expense or income item
     :param str update_query: Query string to set new values for specified category and table
     :raises Exception: Error message when unable to update amount and does db rollback
     :returns: Updated income or expense amount in relevant table and commits db
@@ -234,7 +227,15 @@ def update_actual(table_name, db, cursor):
 
 def update_goal(table_name, db, cursor):
     """ This function allows a user to enter goals, i.e.: budgets for expenses
-    and targets for income categories"""
+    and targets for income categories
+    :param str table_name: Name of relevant income or expense table to be modified
+    :param str category: Name of category where amount is to be updated
+    :param str query: String query to select data from table specified
+    :param float new_target: The updated budget / target value to be allocated to the category
+    :param str update_query: Query string to set new target for specified category and table
+    :raises Exception: Error message when unable to update amount and does db rollback
+    :returns: Updated income or expense target in relevant table and commits db
+    """
     
     print("Displaying category items:")
     view_tables(table_name, cursor)
@@ -265,7 +266,6 @@ def update_goal(table_name, db, cursor):
         print("Unable to update. Please enter a valid category (case sensitive).")
 
 
-
 def view_tables(table_name, cursor):
     """ Views both expense or income tables in net format.
     :param str table_name: Name of table to be displayed
@@ -290,9 +290,7 @@ def view_tables(table_name, cursor):
     budget_total = format(float(budget_total), ".2f")
     
     table.append(["","TOTAL",actual_total, budget_total])
-    
-    print(table)
-    
+        
     print(f"Showing entries in {table_name}:")
     
     # https://stackoverflow.com/questions/37079957/pythons-tabulate-number-of-decimal
@@ -301,7 +299,7 @@ def view_tables(table_name, cursor):
     print("\n")  
 
 
-def budget_summary(income_table, expense_table, db, cursor):
+def budget_summary(income_table, expense_table, cursor):
     """ Function calculates difference between income and spend and outputs result.
     :param str query_total_income: Query to calculate total from income table
     :param str query_total_expenses: Query to calculate total from expenses table
@@ -313,19 +311,37 @@ def budget_summary(income_table, expense_table, db, cursor):
     :returns: Visual output of budget summary table
     """
     
-    query_total_income = f"SELECT Total(amount) FROM {income_table}"
-    query_total_expenses = f"SELECT Total(amount) FROM {expense_table}"
+    query_total_income = f"SELECT Total(actual) FROM {income_table}"
+    query_budget_income = f"SELECT Total(budget) FROM {income_table}"
+    
+    query_total_expenses = f"SELECT Total(actual) FROM {expense_table}"
+    query_budget_expenses = f"SELECT Total(budget) FROM {expense_table}"
     
     try: 
         cursor.execute(query_total_income)
         total_income = cursor.fetchone()[0]
         total_income = format(float(total_income), ".2f")
         
+        cursor.execute(query_budget_income)
+        budget_income = cursor.fetchone()[0]
+        budget_income = format(float(total_income), ".2f")
+        
         cursor.execute(query_total_expenses)
         total_expenses = cursor.fetchone()[0]
         total_expenses = format(float(total_expenses),".2f")
+        
+        cursor.execute(query_budget_expenses)
+        budget_expenses = cursor.fetchone()[0]
+        budget_expenses = format(float(total_expenses),".2f")
 
-        budget = format(float(total_income) - float(total_expenses), ".2f")
+        #budget = format(float(total_income) - float(total_expenses), ".2f")
+        income_variance = format(float(total_income) - float(budget_income), ".2f")
+        expense_variance = format(float(budget_expenses) - float(total_expenses), ".2f")
+        actual_difference = format(float(total_income) - float(total_expenses), ".2f")
+        budget_difference = format(float(budget_income) - float(budget_expenses), ".2f")
+        savings_variance = format(float(actual_difference) - float(budget_difference),".2f")
+        
+        
         budget = f"R{budget}"
         total_income = f"R{total_income}"
         total_expenses = f"R{total_expenses}"
@@ -432,7 +448,7 @@ q - Exit income management\n''').lower()
         elif user_choice == "g":
             print("You have selected to enter a new target for an income category.")
             update_goal("incomes", db, cursor)
-            view_tables("expenses",cursor)
+            view_tables("incomes",cursor)
         
         elif user_choice == "r":
             print("You have selected to remove an income category.")
@@ -470,7 +486,7 @@ while menu_status:
     user_choice = input('''\nMain Menu Options:
 e - View expense management menu
 i - View income management menu
-b - View budget summary
+b - View progress against goals
 q - Exit 
 
 Enter selection:\n''').lower()
