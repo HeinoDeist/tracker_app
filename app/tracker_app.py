@@ -17,13 +17,17 @@ and tabulate is used to represent output in neat and readable format.
 """
 import sqlite3
 from tabulate import tabulate
+import os
 
 
 ##############################################################################################################
 # DATABASE FUNCTIONS
 
 # Reference the path to the database file.
-db_file = "data/tracker_db"
+# https://note.nkmk.me/en/python-script-file-path/
+# Accessed on 25 October 2023, wanted to know more about relative file referencing
+# and include the db in folder.
+db_file = os.path.join(os.path.dirname(__file__), 'tracker_db')
 
 
 def create_connection(db_file):
@@ -301,14 +305,22 @@ def view_tables(table_name, cursor):
 
 def budget_summary(income_table, expense_table, db, cursor):
     """ Function calculates difference between income and spend and outputs result.
-    :param str query_total_income: Query to calculate total from income table
-    :param str query_total_expenses: Query to calculate total from expenses table
-    :param float total_income: Sum of all income categories formatted to two decimals
-    :param float total_expenses: Sum of all expense categories formatted to two decimals
-    :param float budget: Difference between income and expense categories
+    :param str query_total_income: Query to calculate total actual from income table
+    :param str query_budget_income: Query to calculate total budget from income table
+    :param str query_total_expenses: Query to calculate total actuals from expenses table
+    :param str query_budget_expenses: Query to calculate total budgets from expense table
+    :param float total_income: Sum of actual income amounts
+    :param float budget_income: Sum of budget for all income categories
+    :param float total_expenses: Sum of all actual expenses
+    :param float budget_expenses: Sum of budget for all expense categories
+    :param float income_variance: Difference between plan (budget) and actual for income
+    :param float expense_variance: Difference between budget and actual for all expenses
+    :param float actual_difference: The real difference between actual income and actual expenses
+    :param float budget_difference: The difference between planned income and planned (budgeted) expenses
+    :param float savings_variance: Total deviation from goal
     :param list table: Prepares budget item summary for tabulate function
     :raises Exception: Raises error message when unable to perform queries
-    :returns: Visual output of budget summary table
+    :returns: Visual output of budget summary table, and progress towards goals
     """
     
     query_total_income = f"SELECT Total(actual) FROM {income_table}"
@@ -318,56 +330,58 @@ def budget_summary(income_table, expense_table, db, cursor):
     query_budget_expenses = f"SELECT Total(budget) FROM {expense_table}"
     
     try: 
+        
+        # Extract totals from budget and actual fields in expenses and income tables
         cursor.execute(query_total_income)
         total_income = cursor.fetchone()[0]
-        total_income = format(float(total_income), ".2f")
-        
+            
         cursor.execute(query_budget_income)
         budget_income = cursor.fetchone()[0]
-        budget_income = format(float(budget_income), ".2f")
-        
+            
         cursor.execute(query_total_expenses)
         total_expenses = cursor.fetchone()[0]
-        total_expenses = format(float(total_expenses),".2f")
-            
+                
         cursor.execute(query_budget_expenses)
         budget_expenses = cursor.fetchone()[0]
-        budget_expenses = format(float(budget_expenses),".2f")
 
-
-        income_variance = format(float(total_income) - float(budget_income), ".2f")
-        expense_variance = format(float(budget_expenses) - float(total_expenses), ".2f")
-        actual_difference = format(float(total_income) - float(total_expenses), ".2f")
-        budget_difference = format(float(budget_income) - float(budget_expenses), ".2f")
-        savings_variance = format(float(actual_difference) - float(budget_difference),".2f")
-            
+        income_variance = total_income - budget_income
+        expense_variance = budget_expenses - total_expenses
+        actual_difference = total_income - total_expenses
+        budget_difference = budget_income - budget_expenses
+        savings_variance = actual_difference - budget_difference
+        
+        # Prepare data for tabulate function      
         table = [["Income:", total_income, budget_income, income_variance],
                 ["Expenses:", total_expenses, budget_expenses, expense_variance],
-                ["Savings", actual_difference, budget_difference, savings_variance]]
-            
-        print(tabulate(table, headers = ["Category", "Actual (Rands)", "Budget (Rands)", "Variance (Rands)"], floatfmt = ".2f"))
-    
+                ["SAVINGS:", actual_difference, budget_difference, savings_variance]]
+                
+        print(tabulate(table, headers = ["CATEGORY", "ACTUAL (RANDS)", "BUDGET (RANDS))", "VARIANCE (RANDS))"], floatfmt = ".2f"))
+        print("\n")
+        
+        # Determine if user is ahead or behind on income goals
         if income_variance < 0:
-            print(f"You have earned R{-income_variance} less than planned.")
+            print(f"You have earned R{format(-income_variance, '.2f')} less than planned.")
         elif income_variance > 0:
-            print(f"You have earned R{-income_variance} more than planned. Great!!")
+            print(f"You have earned R{format(-income_variance, '.2f')} more than planned. Great!!")
         elif income_variance == 0:
             print("Your income is exactly as planned. Spot on!")
-            
+         
+         # Determine if user is ahead or behind on expense goals       
         if expense_variance > 0:
-            print(f"You have managed to save R{expense_variance} on your expenses! You're on track!")
+            print(f"You have managed to save R{format(expense_variance, '.2f')} on your expenses! You're on track!")
         elif expense_variance < 0:
-            print(f"Careful! You have spent R{-expense_variance} more than budgeted!")
+            print(f"Careful! You have spent R{format(-expense_variance, '.2f')} more than budgeted!")
         elif expense_variance == 0:
             print("Your spending matches your budget.")
-            
+         
+        # Determine if user is ahead or behind on overall goals       
         if savings_variance < 0:
-            print(f"Between income and expenses, you are R{-savings_variance} behind your goal!")
+            print(f"Between income and expenses, you are R{format(-savings_variance, '.2f')} behind your goal!")
         elif savings_variance > 0:
-            print(f"Between income and expenses, you are R{savings_variance} ahead of your goal! Keep going!")
+            print(f"Between income and expenses, you are R{format(savings_variance, '.2f')} ahead of your goal! Keep going!")
         elif savings_variance == 0:
             print("You are breaking even in terms of your goals. ")
-    
+        
     except Exception as error_msg:
         print("Unable to extract budget summary.")
 
@@ -390,7 +404,7 @@ def expense_menu():
         
         user_choice = input('''\nWould you like to:
 a - Add expense categories
-u - Update expense amount (actual)
+u - Update expense actual
 g - Update expense budget
 r - Remove expense category
 v - View expense categories, amounts and total
@@ -445,7 +459,7 @@ def income_menu():
     while income_management:
         user_choice = input('''\nWould you like to:
 a - Add income categories
-u - Update income amount
+u - Update income actual
 g - Update income targets
 r - Remove income category
 v - View income categories, amounts and total
@@ -502,7 +516,7 @@ while menu_status:
     user_choice = input('''\nMain Menu Options:
 e - View expense management menu
 i - View income management menu
-b - View progress against goals
+g - View progress against goals
 q - Exit 
 
 Enter selection:\n''').lower()
@@ -515,7 +529,7 @@ Enter selection:\n''').lower()
         print("You have selected the income menu.") 
         user_choice = income_menu()         # Calls the income sub-menu function. 
         
-    elif user_choice == "b":
+    elif user_choice == "g":
         print("You have selected to view your budget summary.") 
         budget_summary("incomes","expenses", db, cursor)        # Calls the budget summary function
         
