@@ -295,11 +295,11 @@ def view_tables(table_name, cursor):
     
     # https://stackoverflow.com/questions/37079957/pythons-tabulate-number-of-decimal
     # Accessed 16 Sep 2023, Wanted to know how to format numbers using tabulate module
-    print(tabulate(table, headers=["ID","CATEGORY","ACTUAL (RANDS)","BUDGET (RANDS)"], floatfmt=".2f"))
+    print(tabulate(table, headers=["ID","CATEGORY","ACTUAL (RANDS)","BUDGET (RANDS)"], floatfmt = ".2f"))
     print("\n")  
 
 
-def budget_summary(income_table, expense_table, cursor):
+def budget_summary(income_table, expense_table, db, cursor):
     """ Function calculates difference between income and spend and outputs result.
     :param str query_total_income: Query to calculate total from income table
     :param str query_total_expenses: Query to calculate total from expenses table
@@ -324,33 +324,49 @@ def budget_summary(income_table, expense_table, cursor):
         
         cursor.execute(query_budget_income)
         budget_income = cursor.fetchone()[0]
-        budget_income = format(float(total_income), ".2f")
+        budget_income = format(float(budget_income), ".2f")
         
         cursor.execute(query_total_expenses)
         total_expenses = cursor.fetchone()[0]
         total_expenses = format(float(total_expenses),".2f")
-        
+            
         cursor.execute(query_budget_expenses)
         budget_expenses = cursor.fetchone()[0]
-        budget_expenses = format(float(total_expenses),".2f")
+        budget_expenses = format(float(budget_expenses),".2f")
 
-        #budget = format(float(total_income) - float(total_expenses), ".2f")
+
         income_variance = format(float(total_income) - float(budget_income), ".2f")
         expense_variance = format(float(budget_expenses) - float(total_expenses), ".2f")
         actual_difference = format(float(total_income) - float(total_expenses), ".2f")
         budget_difference = format(float(budget_income) - float(budget_expenses), ".2f")
         savings_variance = format(float(actual_difference) - float(budget_difference),".2f")
-        
-        
-        budget = f"R{budget}"
-        total_income = f"R{total_income}"
-        total_expenses = f"R{total_expenses}"
-        
-        table = [["Income:", total_income],
-                ["Expenses:", total_expenses],
-                ["Budget", budget]]
-        
-        print(tabulate(table, headers = ["CATEGORY", "AMOUNT (Rands)"]))
+            
+        table = [["Income:", total_income, budget_income, income_variance],
+                ["Expenses:", total_expenses, budget_expenses, expense_variance],
+                ["Savings", actual_difference, budget_difference, savings_variance]]
+            
+        print(tabulate(table, headers = ["Category", "Actual (Rands)", "Budget (Rands)", "Variance (Rands)"], floatfmt = ".2f"))
+    
+        if income_variance < 0:
+            print(f"You have earned R{-income_variance} less than planned.")
+        elif income_variance > 0:
+            print(f"You have earned R{-income_variance} more than planned. Great!!")
+        elif income_variance == 0:
+            print("Your income is exactly as planned. Spot on!")
+            
+        if expense_variance > 0:
+            print(f"You have managed to save R{expense_variance} on your expenses! You're on track!")
+        elif expense_variance < 0:
+            print(f"Careful! You have spent R{-expense_variance} more than budgeted!")
+        elif expense_variance == 0:
+            print("Your spending matches your budget.")
+            
+        if savings_variance < 0:
+            print(f"Between income and expenses, you are R{-savings_variance} behind your goal!")
+        elif savings_variance > 0:
+            print(f"Between income and expenses, you are R{savings_variance} ahead of your goal! Keep going!")
+        elif savings_variance == 0:
+            print("You are breaking even in terms of your goals. ")
     
     except Exception as error_msg:
         print("Unable to extract budget summary.")
